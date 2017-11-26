@@ -144,6 +144,7 @@ if __name__ == "__main__":
 
     # Initialize and environment and learner
     env = gym.make(args.game)
+    env.seed(args.seed)
     state_size = env.observation_space.shape[0]
     action_size = env.action_space.n
     agent = SimpleLearner(state_size, action_size)
