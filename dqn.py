@@ -45,7 +45,7 @@ class DQLearner:
             state2, #state2.reshape((1,) + state2.shape),
             done))
 
-    def act(self, state):
+    def decide(self, state):
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
         else:
@@ -65,12 +65,6 @@ class DQLearner:
         self.model.fit(X, Y, epochs=epochs, verbose=0)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-
-    def load(self, name):
-        self.model.load_weights(name)
-
-    def save(self, name):
-        self.model.save_weights(name)
 
 
 class SimpleLearner(DQLearner):
@@ -99,6 +93,7 @@ class SimpleLearner(DQLearner):
         self.model = model
         return model
 
+
 def play_game(env, agent, learn=False, render=False, epochs=1):
     done = False
     state = env.reset()
@@ -108,7 +103,7 @@ def play_game(env, agent, learn=False, render=False, epochs=1):
         if render:
             env.render()
         old_state = state
-        action = agent.act(state)
+        action = agent.decide(state)
         state, reward, done, _ = env.step(action)
         reward = reward if not done else reward-10
         score += reward
@@ -122,6 +117,7 @@ def play_game(env, agent, learn=False, render=False, epochs=1):
             agent.replay(epochs)
 
     return score, time
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
