@@ -85,15 +85,15 @@ class SimpleLearner(DQLearner):
     def build_nnet(self):
         # Neural Net for Deep-Q learning Model
         model = Sequential()
-        """
-        model.add(Dense(12, activation='relu', input_dim=self.state_size))
-        model.add(Dense(12, activation='relu'))
-        model.add(Dense(12, activation='relu'))
+        model.add(Dense(3*self.state_size, activation='relu', input_dim=self.state_size))
+        model.add(Dense(4*self.state_size, activation='relu'))
+        model.add(Dense(3*self.state_size, activation='relu'))
         model.add(Dense(self.action_size, activation='linear'))
         """
-        model.add(Dense(24, input_dim=4, activation='tanh'))
-        model.add(Dense(48, activation='tanh'))
-        model.add(Dense(2, activation='linear'))
+        model.add(Dense(6*self.state_size, input_dim=4, activation='tanh'))
+        model.add(Dense(12*self.state_size, activation='tanh'))
+        model.add(Dense(self.action_size, activation='linear'))
+        """
 
         model.compile(loss='mse', optimizer=Adam(lr=self.alpha, decay=self.alpha_decay))
         self.model = model
