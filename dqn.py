@@ -130,6 +130,7 @@ if __name__ == "__main__":
     parser.add_argument('--appr-epochs', type=int, default=1)
     parser.add_argument('--learn-epochs', type=int, default=1)
     parser.add_argument('--seed', type=int)
+    parser.add_argument('--score-out', help='Path to text file to output scores')
     parser.add_argument('appr_data', nargs='*',
         help='Path to apprenticeship data, in the format output by OpenAIGaming')
     args = parser.parse_args()
@@ -182,7 +183,12 @@ if __name__ == "__main__":
     train_time = tm.time() - start_time
     print('Training time = {} seconds'.format(train_time))
 
-    score_av_size = 10
+    # output scores
+    if args.score_out is not None:
+        with open(args.score_out, 'w') as fobj:
+            print(*scores, sep='\n', file=fobj)
+
+    score_av_size = 100
     av_scores = [sum(scores[:score_av_size])]
     for i in range(score_av_size, len(scores)):
         av_scores.append(av_scores[-1] - scores[i-score_av_size] + scores[i])
