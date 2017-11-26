@@ -16,7 +16,6 @@ from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
-from matplotlib import pyplot as plt
 
 
 class DQLearner:
@@ -123,14 +122,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('game', help='Name of an OpenAI gym environment')
     parser.add_argument('--episodes', type=int, default=1000)
-    parser.add_argument('--show-games', type=int, default=0,
+    parser.add_argument('--test-games', type=int, default=10,
         help='The number of games the bot should play after training')
+    parser.add_argument('--show-games', type=int, default=0,
+        help='The number of test games which should be rendered')
     parser.add_argument('--replay-interval', type=int, default=50,
         help='The number of actions the bot should take between successive memory replays')
     parser.add_argument('--appr-epochs', type=int, default=1)
     parser.add_argument('--learn-epochs', type=int, default=1)
+    parser.add_argument('--appr-epochs2', type=int, default=10)
     parser.add_argument('--seed', type=int)
-    parser.add_argument('--score-out', help='Path to text file to output scores')
+    parser.add_argument('--train-score-out', help='Path to text file to output training scores')
+    parser.add_argument('--test-score-out', help='Path to text file to output testing scores')
+    parser.add_argument('--cr-print', action='store_true', default=False,
+        help='Use carriage return instead of line feed when printing scores to a tty')
     parser.add_argument('appr_data', nargs='*',
         help='Path to apprenticeship data, in the format output by OpenAIGaming')
     args = parser.parse_args()
@@ -148,21 +153,29 @@ if __name__ == "__main__":
     agent.build_nnet()
     print(file=sys.stderr)
 
-    # Load and memorize apprenticeship data
-    for dirpath in args.appr_data:
-        print('Learning from', dirpath)
-        actions = np.load(pjoin(dirpath, 'actions.npy'))
-        rewards = np.load(pjoin(dirpath, 'rewards.npy'))
-        states = np.load(pjoin(dirpath, 'states.npy'))
-        sz = len(actions)
-        for i in range(sz):
-            agent.memorize(states[i], actions[i], rewards[i], states[i+1], i == sz - 1)
-            if (i+1) % args.replay_interval == 0 and len(agent.memory) > agent.batch_size:
-                agent.replay(args.appr_epochs)
-        if len(agent.memory) > agent.batch_size:
-            agent.replay(args.appr_epochs)
+    print_end_char = '\r' if args.cr_print else '\n'
 
-    # agent.load("./save/cartpole-dqn.h5")
+    # Load and memorize apprenticeship data
+    print(file=sys.stderr)
+    try:
+        for j in range(args.appr_epochs2):
+            for dirpath in args.appr_data:
+                print(j, 'Learning from', dirpath, file=sys.stderr, end=print_end_char)
+                actions = np.load(pjoin(dirpath, 'actions.npy'))
+                rewards = np.load(pjoin(dirpath, 'rewards.npy'))
+                states = np.load(pjoin(dirpath, 'states.npy'))
+                sz = len(actions)
+                for i in range(sz):
+                    agent.memorize(states[i], actions[i], rewards[i], states[i+1], i == sz - 1)
+                    if (i+1) % args.replay_interval == 0 and len(agent.memory) > agent.batch_size:
+                        agent.replay(args.appr_epochs)
+                if len(agent.memory) > agent.batch_size:
+                    agent.replay(args.appr_epochs)
+    except KeyboardInterrupt:
+        pass
+    print(file=sys.stderr)
+
+    # training
     start_time = tm.time()
 
     scores = []
@@ -175,35 +188,27 @@ if __name__ == "__main__":
             scores.append(score)
             times.append(time)
             line = "episode: {}, score: {}, e: {:.2}".format(e, score, agent.epsilon)
-            print(line, file=sys.stderr, end='\n')
-            # agent.save("./save/cartpole-dqn.h5")
+            print(line, file=sys.stderr, end=print_end_char)
     except KeyboardInterrupt:
         pass 
     print(file=sys.stderr)
     train_time = tm.time() - start_time
     print('Training time = {} seconds'.format(train_time))
 
-    # output scores
-    if args.score_out is not None:
-        with open(args.score_out, 'w') as fobj:
+    # output train scores
+    if args.train_score_out is not None:
+        with open(args.train_score_out, 'w') as fobj:
             print(*scores, sep='\n', file=fobj)
 
-    score_av_size = 100
-    av_scores = [sum(scores[:score_av_size])]
-    for i in range(score_av_size, len(scores)):
-        av_scores.append(av_scores[-1] - scores[i-score_av_size] + scores[i])
-    for i in range(len(av_scores)):
-        av_scores[i] /= score_av_size
-
-    # plot scores
-    x = list(range(len(scores)))
-    plt.plot(x, scores)
-    plt.show()
-    x = list(range(len(av_scores)))
-    plt.plot(x, av_scores)
-    plt.show()
-
-    # play game
-    for e in range(args.show_games):
-        score, time = play_game(env, agent, render=True)
+    # testing
+    scores = []
+    for e in range(args.test_games):
+        score, time = play_game(env, agent, render=(e<args.show_games))
         print('Score =', score)
+        scores.append(score)
+    print('Average test score:', sum(scores) / len(scores))
+
+    # output test scores
+    if args.test_score_out is not None:
+        with open(args.test_score_out, 'w') as fobj:
+            print(*scores, sep='\n', file=fobj)
